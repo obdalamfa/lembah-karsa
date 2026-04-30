@@ -1,0 +1,441 @@
+{
+  "scene_name": "town",
+  "player_x": 15.0,
+  "player_y": 14.0,
+  "target_tile_x": 8,
+  "target_tile_y": 8,
+  "facing": "down",
+  "day": 2,
+  "year": 1,
+  "day_in_season": 2,
+  "season_index": 0,
+  "time_minutes": 360,
+  "weather": "Hujan",
+  "energy": 100,
+  "max_energy": 100,
+  "gold": 100,
+  "tool_index": 3,
+  "seed_key": "stroberi",
+  "inventory": {
+    "running_mushroom": 1,
+    "susu": 1,
+    "wol": 1,
+    "mandrake": 1,
+    "wild_herb": 2,
+    "wild_berry": 1
+  },
+  "soil": {
+    "9,9,farm": {
+      "tilled": true,
+      "watered": false,
+      "crop": "lobak",
+      "age": 1
+    },
+    "11,9,farm": {
+      "tilled": true,
+      "watered": false,
+      "crop": "lobak",
+      "age": 1
+    },
+    "10,9,farm": {
+      "tilled": true,
+      "watered": false,
+      "crop": "lobak",
+      "age": 1
+    }
+  },
+  "npc_hearts": {
+    "arya": 0,
+    "sari": 0,
+    "raka": 0,
+    "maya": 0,
+    "budi": 0,
+    "naga_bijak": 0,
+    "jin_kebun": 0,
+    "demit_tua": 0,
+    "tuyul_pencuri": 0,
+    "sapi_betsy": 0,
+    "ayam_kuning": 0,
+    "kambing_jenggot": 0
+  },
+  "npc_dialog_index": {
+    "arya": 1,
+    "sari": 1,
+    "raka": 1,
+    "maya": 1,
+    "budi": 0,
+    "naga_bijak": 4,
+    "jin_kebun": 0,
+    "demit_tua": 0,
+    "tuyul_pencuri": 0,
+    "sapi_betsy": 1,
+    "ayam_kuning": 0,
+    "kambing_jenggot": 0
+  },
+  "npc_positions": {
+    "arya": {
+      "scene": "farm",
+      "x": 12,
+      "y": 12,
+      "activity": "walking"
+    },
+    "sari": {
+      "scene": "shop",
+      "x": 4,
+      "y": 4,
+      "activity": "preparing"
+    },
+    "raka": {
+      "scene": "clinic",
+      "x": 6,
+      "y": 6,
+      "activity": "working"
+    },
+    "maya": {
+      "scene": "studio",
+      "x": 10,
+      "y": 10,
+      "activity": "painting"
+    },
+    "budi": {
+      "scene": "smith",
+      "x": 7,
+      "y": 7,
+      "activity": "forging"
+    },
+    "naga_bijak": {
+      "scene": "naga_cave",
+      "x": 6,
+      "y": 5,
+      "activity": "meditating"
+    },
+    "demit_tua": {
+      "scene": "hidden",
+      "x": -1,
+      "y": -1,
+      "activity": "dormant"
+    },
+    "tuyul_pencuri": {
+      "scene": "hidden",
+      "x": -1,
+      "y": -1,
+      "activity": "sleeping"
+    },
+    "sapi_betsy": {
+      "scene": "farm",
+      "x": 16.392523260604406,
+      "y": 4.001172993788269,
+      "activity": "grazing",
+      "target_x": 16.0,
+      "target_y": 4.0
+    },
+    "ayam_kuning": {
+      "scene": "farm",
+      "x": 17.0,
+      "y": 3.215499999999998,
+      "activity": "pecking",
+      "target_x": 17.0,
+      "target_y": 3.0
+    },
+    "kambing_jenggot": {
+      "scene": "farm",
+      "x": 18.0,
+      "y": 6.0,
+      "activity": "grazing",
+      "target_x": 18.0,
+      "target_y": 6.0
+    }
+  },
+  "wild_entities": [
+    {
+      "kind": "mandrake",
+      "x": 12,
+      "y": 24,
+      "scene": "mountain",
+      "moving": false
+    },
+    {
+      "kind": "mandrake",
+      "x": 1,
+      "y": 6,
+      "scene": "mountain",
+      "moving": false
+    },
+    {
+      "kind": "running_mushroom",
+      "x": 8,
+      "y": 10,
+      "scene": "mountain",
+      "moving": true
+    },
+    {
+      "kind": "running_mushroom",
+      "x": 6,
+      "y": 13,
+      "scene": "mountain",
+      "moving": true
+    },
+    {
+      "kind": "running_mushroom",
+      "x": 10,
+      "y": 4,
+      "scene": "mountain",
+      "moving": true
+    },
+    {
+      "kind": "running_mushroom",
+      "x": 6,
+      "y": 10,
+      "scene": "farm",
+      "moving": true
+    },
+    {
+      "kind": "running_mushroom",
+      "x": 22,
+      "y": 1,
+      "scene": "farm",
+      "moving": true
+    },
+    {
+      "kind": "firefly",
+      "x": 18,
+      "y": 5,
+      "scene": "farm",
+      "moving": true,
+      "night_only": true
+    },
+    {
+      "kind": "firefly",
+      "x": 8,
+      "y": 8,
+      "scene": "farm",
+      "moving": true,
+      "night_only": true
+    },
+    {
+      "kind": "firefly",
+      "x": 6,
+      "y": 14,
+      "scene": "farm",
+      "moving": true,
+      "night_only": true
+    },
+    {
+      "kind": "firefly",
+      "x": 17,
+      "y": 5,
+      "scene": "farm",
+      "moving": true,
+      "night_only": true
+    },
+    {
+      "kind": "firefly",
+      "x": 12,
+      "y": 5,
+      "scene": "farm",
+      "moving": true,
+      "night_only": true
+    },
+    {
+      "kind": "firefly",
+      "x": 0,
+      "y": 10,
+      "scene": "town",
+      "moving": true,
+      "night_only": true
+    },
+    {
+      "kind": "firefly",
+      "x": 15,
+      "y": 21,
+      "scene": "town",
+      "moving": true,
+      "night_only": true
+    },
+    {
+      "kind": "firefly",
+      "x": 18,
+      "y": 3,
+      "scene": "town",
+      "moving": true,
+      "night_only": true
+    },
+    {
+      "kind": "firefly",
+      "x": 28,
+      "y": 2,
+      "scene": "town",
+      "moving": true,
+      "night_only": true
+    },
+    {
+      "kind": "firefly",
+      "x": 10,
+      "y": 6,
+      "scene": "town",
+      "moving": true,
+      "night_only": true
+    },
+    {
+      "kind": "wild_herb",
+      "x": 18,
+      "y": 5,
+      "scene": "mountain",
+      "moving": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 15,
+      "y": 21,
+      "scene": "mountain",
+      "moving": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 24,
+      "y": 14,
+      "scene": "mountain",
+      "moving": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 9,
+      "y": 11,
+      "scene": "mountain",
+      "moving": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 22,
+      "y": 11,
+      "scene": "mountain",
+      "moving": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 18,
+      "y": 13,
+      "scene": "mountain",
+      "moving": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 28,
+      "y": 14,
+      "scene": "mountain",
+      "moving": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 9,
+      "y": 23,
+      "scene": "mountain",
+      "moving": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 3,
+      "y": 20,
+      "scene": "mountain",
+      "moving": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 5,
+      "y": 14,
+      "scene": "mountain",
+      "moving": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 29,
+      "y": 19,
+      "scene": "mountain",
+      "moving": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 1,
+      "y": 6,
+      "scene": "mountain",
+      "moving": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 6,
+      "y": 15,
+      "scene": "farm",
+      "moving": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 17,
+      "y": 12,
+      "scene": "farm",
+      "moving": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 18,
+      "y": 8,
+      "scene": "farm",
+      "moving": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 12,
+      "y": 14,
+      "scene": "farm",
+      "moving": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 12,
+      "y": 11,
+      "scene": "mountain",
+      "moving": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 9,
+      "y": 11,
+      "scene": "mountain",
+      "moving": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 5,
+      "y": 11,
+      "scene": "mountain",
+      "moving": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 16,
+      "y": 7,
+      "scene": "mountain",
+      "moving": false
+    }
+  ],
+  "upgrades": {
+    "hoe": false,
+    "water": false,
+    "bag": false,
+    "axe": false
+  },
+  "quest_stage": 0,
+  "mail_read": false,
+  "shop_unlocked": false,
+  "greenhouse_open": false,
+  "met_jin": false,
+  "captured_supernatural": 1,
+  "stats": {
+    "lobak_planted": 3,
+    "watered": 3,
+    "lobak_harvested": 0,
+    "corn_harvested": 0,
+    "earned": 0,
+    "gifts": 0,
+    "seasons_harvested": []
+  }
+}

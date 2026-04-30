@@ -1,0 +1,582 @@
+{
+  "scene_name": "outdoor",
+  "player_x": 21.0,
+  "player_y": 6.0,
+  "target_tile_x": 5,
+  "target_tile_y": 7,
+  "facing": "down",
+  "day": 2,
+  "year": 1,
+  "day_in_season": 2,
+  "season_index": 0,
+  "time_minutes": 406.95519999999107,
+  "weather": "Hujan",
+  "energy": 86,
+  "max_energy": 100,
+  "gold": 100,
+  "tool_index": 1,
+  "seed_key": "stroberi",
+  "inventory": {
+    "wol": 1,
+    "susu": 1,
+    "telur": 1
+  },
+  "soil": {
+    "11,2,outdoor": {
+      "tilled": true,
+      "watered": false,
+      "crop": null,
+      "age": 0
+    },
+    "12,2,outdoor": {
+      "tilled": true,
+      "watered": true,
+      "crop": "lobak",
+      "age": 1
+    },
+    "12,3,outdoor": {
+      "tilled": true,
+      "watered": true,
+      "crop": "lobak",
+      "age": 1
+    },
+    "11,3,outdoor": {
+      "tilled": true,
+      "watered": true,
+      "crop": "lobak",
+      "age": 1
+    },
+    "11,8,greenhouse": {
+      "tilled": true,
+      "watered": false,
+      "crop": null,
+      "age": 0
+    },
+    "9,8,greenhouse": {
+      "tilled": true,
+      "watered": false,
+      "crop": null,
+      "age": 0
+    },
+    "8,8,greenhouse": {
+      "tilled": true,
+      "watered": false,
+      "crop": null,
+      "age": 0
+    },
+    "7,8,greenhouse": {
+      "tilled": true,
+      "watered": false,
+      "crop": null,
+      "age": 0
+    },
+    "6,8,greenhouse": {
+      "tilled": true,
+      "watered": false,
+      "crop": null,
+      "age": 0
+    },
+    "5,8,greenhouse": {
+      "tilled": true,
+      "watered": false,
+      "crop": null,
+      "age": 0
+    },
+    "10,2,outdoor": {
+      "tilled": true,
+      "watered": false,
+      "crop": null,
+      "age": 0
+    }
+  },
+  "npc_hearts": {
+    "arya": 0,
+    "sari": 0,
+    "raka": 0,
+    "maya": 0,
+    "budi": 0,
+    "naga_bijak": 2,
+    "jin_kebun": 0,
+    "demit_tua": 0,
+    "tuyul_pencuri": 0,
+    "sapi_betsy": 0,
+    "ayam_kuning": 0,
+    "kambing_jenggot": 0
+  },
+  "npc_dialog_index": {
+    "arya": 1,
+    "sari": 0,
+    "raka": 0,
+    "maya": 0,
+    "budi": 1,
+    "naga_bijak": 4,
+    "jin_kebun": 0,
+    "demit_tua": 0,
+    "tuyul_pencuri": 3,
+    "sapi_betsy": 1,
+    "ayam_kuning": 1,
+    "kambing_jenggot": 1
+  },
+  "npc_positions": {
+    "arya": {
+      "scene": "outdoor",
+      "x": 10,
+      "y": 9,
+      "activity": "wake"
+    },
+    "sari": {
+      "scene": "shop",
+      "x": 7,
+      "y": 3,
+      "activity": "preparing"
+    },
+    "raka": {
+      "scene": "clinic",
+      "x": 7,
+      "y": 3,
+      "activity": "working"
+    },
+    "maya": {
+      "scene": "studio",
+      "x": 7,
+      "y": 3,
+      "activity": "painting"
+    },
+    "budi": {
+      "scene": "smith",
+      "x": 7,
+      "y": 3,
+      "activity": "forging"
+    },
+    "naga_bijak": {
+      "scene": "naga_cave",
+      "x": 6,
+      "y": 5,
+      "activity": "meditating"
+    },
+    "jin_kebun": {
+      "scene": "hidden",
+      "x": -1,
+      "y": -1,
+      "activity": "dormant"
+    },
+    "demit_tua": {
+      "scene": "hidden",
+      "x": -1,
+      "y": -1,
+      "activity": "dormant"
+    },
+    "tuyul_pencuri": {
+      "scene": "hidden",
+      "x": -1,
+      "y": -1,
+      "activity": "sleeping"
+    },
+    "sapi_betsy": {
+      "scene": "outdoor",
+      "x": 3,
+      "y": 11,
+      "activity": "grazing"
+    },
+    "ayam_kuning": {
+      "scene": "outdoor",
+      "x": 7,
+      "y": 11,
+      "activity": "pecking"
+    },
+    "kambing_jenggot": {
+      "scene": "outdoor",
+      "x": 7,
+      "y": 11,
+      "activity": "grazing"
+    }
+  },
+  "wild_entities": [
+    {
+      "kind": "mandrake",
+      "x": 5,
+      "y": 24,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "mandrake",
+      "x": 5,
+      "y": 31,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "running_mushroom",
+      "x": 1,
+      "y": 31,
+      "scene": "outdoor",
+      "moving": true,
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "running_mushroom",
+      "x": 1,
+      "y": 16,
+      "scene": "outdoor",
+      "moving": true,
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "running_mushroom",
+      "x": 0,
+      "y": 17,
+      "scene": "outdoor",
+      "moving": true,
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "running_mushroom",
+      "x": 17,
+      "y": 28,
+      "scene": "outdoor",
+      "moving": true,
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "running_mushroom",
+      "x": 1,
+      "y": 33,
+      "scene": "outdoor",
+      "moving": true,
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "firefly",
+      "x": 40,
+      "y": 33,
+      "scene": "outdoor",
+      "moving": true,
+      "spooked": false,
+      "night_only": true
+    },
+    {
+      "kind": "firefly",
+      "x": 3,
+      "y": 33,
+      "scene": "outdoor",
+      "moving": true,
+      "spooked": false,
+      "night_only": true
+    },
+    {
+      "kind": "firefly",
+      "x": 8,
+      "y": 24,
+      "scene": "outdoor",
+      "moving": true,
+      "spooked": false,
+      "night_only": true
+    },
+    {
+      "kind": "firefly",
+      "x": 26,
+      "y": 19,
+      "scene": "outdoor",
+      "moving": true,
+      "spooked": false,
+      "night_only": true
+    },
+    {
+      "kind": "firefly",
+      "x": 36,
+      "y": 21,
+      "scene": "outdoor",
+      "moving": true,
+      "spooked": false,
+      "night_only": true
+    },
+    {
+      "kind": "firefly",
+      "x": 23,
+      "y": 18,
+      "scene": "outdoor",
+      "moving": true,
+      "spooked": false,
+      "night_only": true
+    },
+    {
+      "kind": "firefly",
+      "x": 39,
+      "y": 21,
+      "scene": "outdoor",
+      "moving": true,
+      "spooked": false,
+      "night_only": true
+    },
+    {
+      "kind": "firefly",
+      "x": 31,
+      "y": 32,
+      "scene": "outdoor",
+      "moving": true,
+      "spooked": false,
+      "night_only": true
+    },
+    {
+      "kind": "wild_herb",
+      "x": 27,
+      "y": 25,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 29,
+      "y": 33,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 29,
+      "y": 26,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 19,
+      "y": 22,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 5,
+      "y": 33,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 19,
+      "y": 31,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 31,
+      "y": 25,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 46,
+      "y": 29,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 7,
+      "y": 31,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 26,
+      "y": 20,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 26,
+      "y": 16,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 42,
+      "y": 17,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 48,
+      "y": 32,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 21,
+      "y": 26,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_herb",
+      "x": 38,
+      "y": 30,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 37,
+      "y": 29,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 4,
+      "y": 17,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 17,
+      "y": 30,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 44,
+      "y": 17,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 3,
+      "y": 24,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 41,
+      "y": 33,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 43,
+      "y": 29,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 42,
+      "y": 26,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 22,
+      "y": 20,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 13,
+      "y": 24,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 23,
+      "y": 21,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 28,
+      "y": 33,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 31,
+      "y": 27,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    },
+    {
+      "kind": "wild_berry",
+      "x": 19,
+      "y": 19,
+      "scene": "outdoor",
+      "spooked": false,
+      "night_only": false
+    }
+  ],
+  "upgrades": {
+    "hoe": false,
+    "water": false,
+    "bag": false,
+    "axe": false
+  },
+  "quest_stage": 1,
+  "mail_read": true,
+  "shop_unlocked": false,
+  "greenhouse_open": false,
+  "met_jin": false,
+  "captured_supernatural": 0,
+  "stats": {
+    "lobak_planted": 3,
+    "watered": 7,
+    "lobak_harvested": 0,
+    "corn_harvested": 0,
+    "earned": 0,
+    "gifts": 1,
+    "seasons_harvested": []
+  }
+}
