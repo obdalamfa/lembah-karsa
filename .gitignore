@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Game save files
+*_save.json
+*.save
+
+# Claude Code settings
+.claude/
+
+# Temp / debug
+err.txt
+out.txt
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Virtual environments
+venv/
+env/
+.venv/
