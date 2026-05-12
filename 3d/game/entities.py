@@ -10,8 +10,9 @@ Koordinat:
 """
 import math, os, random
 from pathlib import Path
+from PIL import Image
 
-from ursina import Entity, Vec3, color, destroy, Text, load_texture
+from ursina import Entity, Vec3, color, destroy, Text, Texture
 from ursina.models.procedural.cylinder import Cylinder
 
 from .config import (TILE_SIZE, GROUND_H, NPC_SPEED, WALKABLE, INVULN_AFTER_HIT_MS,
@@ -33,9 +34,14 @@ def _tex(name: str):
         return _TEX_CACHE[name]
     p = _ASSET_DIR / f'{name}.png'
     if p.exists():
-        t = load_texture(str(p))
-        _TEX_CACHE[name] = t
-        return t
+        try:
+            img = Image.open(p)
+            t = Texture(img)
+            t.filtering = False
+            _TEX_CACHE[name] = t
+            return t
+        except Exception:
+            pass
     return None
 
 def _resolve_model(model):
@@ -151,20 +157,53 @@ def _make_npc_entity(npc_id, tx, ty, col):
 
     is_animal = npc_id in ANIMAL_NPCS
     is_super  = npc_id in SUPERNATURAL_NPCS
-    body_h  = 1.15 if is_animal else 1.10
-    body_w  = 0.65 if is_animal else 0.62
-    body_d  = 0.75 if is_animal else 0.50
-    head_sc = 0.50 if is_animal else 0.52
-    by = GROUND_H + body_h / 2
-    hy = GROUND_H + body_h + head_sc / 2
-
     cloth = NPC_CLOTH_TEX.get(npc_id, 'cloth_blue')
-    _child(root, 'cube', (0, by, 0), (body_w, body_h, body_d), cloth)
-    _child(root, 'cube', (0, hy, 0), (head_sc, head_sc, head_sc), 'skin')
 
-    if is_super:
-        glow_c = color.rgb(255, 200, 60) if npc_id == 'banaspati' else color.rgb(180, 240, 255)
-        _child(root, 'sphere', (0, hy + 0.14, -0.12), (0.24, 0.24, 0.24), 'lamp_glow', glow_c)
+    if is_animal:
+        body_h, body_w, body_d = 0.65, 0.70, 1.10
+        by = GROUND_H + 0.22 + body_h / 2
+        _child(root, 'cube', (0, by, 0), (body_w, body_h, body_d), cloth, col)
+        _child(root, 'cube', (0, by + body_h * 0.18, -body_d * 0.55),
+               (0.42, 0.38, 0.40), cloth, col)
+        for lx in (-0.22, 0.22):
+            for lz in (-0.30, 0.30):
+                _child(root, 'cube', (lx, GROUND_H + 0.18, lz),
+                       (0.15, 0.36, 0.15), 'shoe_dark')
+    else:
+        # Chibi proportions — kepala besar (0.74) > badan (0.60), badan kompak
+        leg_h = 0.38
+        leg_y = GROUND_H + leg_h / 2
+        body_h, body_w, body_d, head_sc = 0.90, 0.60, 0.46, 0.74
+        by = GROUND_H + leg_h + body_h / 2
+        hy = GROUND_H + leg_h + body_h + head_sc / 2
+
+        # Simpan ref kaki & tangan untuk animasi berjalan
+        root._leg_l = _child(root, 'cube', (-0.15, leg_y, 0), (0.22, leg_h, 0.26), 'pants_dark')
+        root._leg_r = _child(root, 'cube', ( 0.15, leg_y, 0), (0.22, leg_h, 0.26), 'pants_dark')
+        for lx in (-0.15, 0.15):
+            _child(root, 'cube', (lx, GROUND_H + 0.06, 0.06), (0.22, 0.13, 0.34), 'shoe_dark')
+        _child(root, 'cube', (0, by, 0), (body_w, body_h, body_d), cloth)
+        _child(root, 'cube', (0, by - body_h * 0.44, 0),
+               (body_w + 0.02, 0.09, body_d + 0.02), 'pants_dark')
+        root._arm_l = _child(root, 'cube', (-0.40, by + 0.04, 0), (0.20, 0.82, 0.20), cloth)
+        root._arm_r = _child(root, 'cube', ( 0.40, by + 0.04, 0), (0.20, 0.82, 0.20), cloth)
+        # Sphere hands (lebih lucu)
+        for arm_x in (-0.40, 0.40):
+            _child(root, 'sphere', (arm_x, by - body_h * 0.46, 0),
+                   (0.24, 0.24, 0.24), 'skin', SKIN)
+        # Neck
+        _child(root, 'cube', (0, hy - head_sc * 0.58, 0), (0.24, 0.16, 0.24), 'skin', SKIN)
+        # Big chibi head
+        _child(root, 'cube', (0, hy, 0), (head_sc, head_sc * 0.95, head_sc), 'skin', SKIN)
+        # Cute eyes
+        for ex in (-0.18, 0.18):
+            _child(root, 'cube', (ex, hy + 0.08, -head_sc * 0.50),
+                   (0.10, 0.12, 0.05), '', color.rgb(45, 30, 18))
+        root._walk_t = 0.0
+
+        if is_super:
+            glow_c = color.rgb(255, 200, 60) if npc_id == 'banaspati' else color.rgb(180, 240, 255)
+            _child(root, 'sphere', (0, hy + 0.18, -0.14), (0.24, 0.24, 0.24), 'lamp_glow', glow_c)
 
     root._npc_id = npc_id
     return root
@@ -358,8 +397,9 @@ class EntitiesManager:
             all_d = {**HUMAN_NPCS, **SUPERNATURAL_NPCS, **ANIMAL_NPCS}
             name  = all_d.get(npc_id, {}).get('name', npc_id)
             lbl   = Text(name, parent=ent, billboard=True,
-                         position=(0, GROUND_H + 2.2, 0),
-                         scale=60, color=color.white, background=False)
+                         position=(0, GROUND_H + 2.7, 0),
+                         scale=5, color=color.rgb(255, 240, 160),
+                         background=True)
             self._npc_ents[npc_id] = (ent, lbl)
 
     def _spawn_wild_for_scene(self):
@@ -680,6 +720,7 @@ class EntitiesManager:
         s  = self.state
         if s.scene_name != 'dungeon': return
         px, pz = s.player_x, s.player_y
+        _rng = __import__('random')
 
         for mob in list(s.mobs):
             if mob.get('dmg_flash_ms', 0) > 0:
@@ -687,27 +728,72 @@ class EntitiesManager:
             if mob.get('attack_cooldown_ms', 0) > 0:
                 mob['attack_cooldown_ms'] = max(0, mob['attack_cooldown_ms'] - dt*1000)
 
-            # Loot sudah ditangani oleh attack_mobs(); di sini hanya cleanup
-            # kalau hp 0 lewat jalur lain (tidak seharusnya terjadi).
             if mob['hp'] <= 0:
                 if mob.get('is_boss'): s.naga_defeated = True
                 if mob in s.mobs:
                     s.mobs.remove(mob)
                 continue
 
-            dist = math.hypot(mob['x']-px, mob['y']-pz)
-            chase_r = 8.0 if mob.get('is_boss') else 6.0
-            if dist <= chase_r and dist > 0.3:
-                spd  = mob['speed'] / TS * dt
-                dx_  = (px - mob['x']) / dist
-                dy_  = (pz - mob['y']) / dist
-                nx_  = mob['x'] + dx_ * spd
-                ny_  = mob['y'] + dy_ * spd
-                if _can_walk(nx_, mob['y'], 'dungeon', s.dungeon_tiles): mob['x'] = nx_
-                if _can_walk(mob['x'], ny_, 'dungeon', s.dungeon_tiles): mob['y'] = ny_
+            is_boss  = mob.get('is_boss', False)
+            alert_r  = 10.0 if is_boss else 5.0
+            chase_r  = 14.0 if is_boss else 8.0
+            atk_r    = 1.5  if is_boss else 1.0
+            dist     = math.hypot(mob['x']-px, mob['y']-pz)
 
-            atk_r = 1.5 if mob.get('is_boss') else 1.0
-            if dist <= atk_r and mob.get('attack_cooldown_ms',0) <= 0:
+            # ── state transitions ──────────────────────────
+            ai_state = mob.get('ai_state', 'patrol')
+            if dist <= alert_r:
+                ai_state = 'chase'
+            elif dist <= chase_r:
+                if ai_state == 'patrol':
+                    ai_state = 'alert'
+            else:
+                ai_state = 'patrol'
+            mob['ai_state'] = ai_state
+
+            # ── PATROL: random wander ──────────────────────
+            if ai_state == 'patrol':
+                mob['patrol_t'] = mob.get('patrol_t', 0.0) + dt
+                interval = mob.get('patrol_interval', _rng.uniform(1.5, 3.5))
+                mob['patrol_interval'] = interval
+                if mob['patrol_t'] >= interval:
+                    mob['patrol_t'] = 0.0
+                    mob['patrol_interval'] = _rng.uniform(1.5, 3.5)
+                    mob['patrol_dx'] = _rng.choice([-1, 0, 0, 1])
+                    mob['patrol_dy'] = _rng.choice([-1, 0, 0, 1])
+                pdx = mob.get('patrol_dx', 0)
+                pdy = mob.get('patrol_dy', 0)
+                if pdx != 0 or pdy != 0:
+                    spd = mob['speed'] * 0.4 / TS * dt
+                    nx_ = mob['x'] + pdx * spd
+                    ny_ = mob['y'] + pdy * spd
+                    if _can_walk(nx_, mob['y'], 'dungeon', s.dungeon_tiles): mob['x'] = nx_
+                    if _can_walk(mob['x'], ny_, 'dungeon', s.dungeon_tiles): mob['y'] = ny_
+
+            # ── ALERT: speed-burst toward player ──────────
+            elif ai_state == 'alert':
+                if dist > 0.3:
+                    spd  = mob['speed'] * 1.6 / TS * dt
+                    dx_  = (px - mob['x']) / dist
+                    dy_  = (pz - mob['y']) / dist
+                    nx_  = mob['x'] + dx_ * spd
+                    ny_  = mob['y'] + dy_ * spd
+                    if _can_walk(nx_, mob['y'], 'dungeon', s.dungeon_tiles): mob['x'] = nx_
+                    if _can_walk(mob['x'], ny_, 'dungeon', s.dungeon_tiles): mob['y'] = ny_
+
+            # ── CHASE: normal pursuit ──────────────────────
+            elif ai_state == 'chase':
+                if dist > 0.3:
+                    spd  = mob['speed'] / TS * dt
+                    dx_  = (px - mob['x']) / dist
+                    dy_  = (pz - mob['y']) / dist
+                    nx_  = mob['x'] + dx_ * spd
+                    ny_  = mob['y'] + dy_ * spd
+                    if _can_walk(nx_, mob['y'], 'dungeon', s.dungeon_tiles): mob['x'] = nx_
+                    if _can_walk(mob['x'], ny_, 'dungeon', s.dungeon_tiles): mob['y'] = ny_
+
+            # ── ATTACK ────────────────────────────────────
+            if dist <= atk_r and mob.get('attack_cooldown_ms', 0) <= 0:
                 if s.invuln_timer_ms <= 0:
                     s.hp = max(0, s.hp - mob['damage'])
                     s.invuln_timer_ms = INVULN_AFTER_HIT_MS
@@ -716,14 +802,61 @@ class EntitiesManager:
     # ─── PRIVATE: SYNC VISUALS ───────────────────────────
     def _sync_npc_visuals(self, dt):
         s    = self.state
-        lerp = min(1.0, dt * 8)
+        # Dynamic spawn/despawn — handles NPCs entering/leaving scene mid-session
+        from .data import HUMAN_NPCS, SUPERNATURAL_NPCS, ANIMAL_NPCS as _AN
+        _all_d = {**HUMAN_NPCS, **SUPERNATURAL_NPCS, **_AN}
+        for npc_id, pos in list(s.npc_positions.items()):
+            in_scene = pos.get('scene') == s.scene_name and pos.get('x', -1) >= 0
+            has_ent  = npc_id in self._npc_ents
+            if in_scene and not has_ent:
+                col = NPC_COLORS.get(npc_id, color.white)
+                ent = _make_npc_entity(npc_id, pos['x'], pos['y'], col)
+                nm  = _all_d.get(npc_id, {}).get('name', npc_id)
+                lbl = Text(nm, parent=ent, billboard=True,
+                           position=(0, GROUND_H + 2.7, 0),
+                           scale=5, color=color.rgb(255, 240, 160),
+                           background=True)
+                self._npc_ents[npc_id] = (ent, lbl)
+            elif not in_scene and has_ent:
+                ent, lbl = self._npc_ents.pop(npc_id)
+                destroy(ent); destroy(lbl)
+
+        lf   = min(1.0, dt * 8)
         for npc_id, (ent, lbl) in self._npc_ents.items():
             pos = s.npc_positions.get(npc_id)
             if not pos: continue
-            wx = pos['x'] * TS
-            wz = pos['y'] * TS
-            ent.x = ent.x + (wx - ent.x) * lerp
-            ent.z = ent.z + (wz - ent.z) * lerp
+            wx  = pos['x'] * TS
+            wz  = pos['y'] * TS
+            dx  = wx - ent.x
+            dz  = wz - ent.z
+            ent.x += dx * lf
+            ent.z += dz * lf
+
+            # Animasi berjalan / idle untuk NPC humanoid
+            if not hasattr(ent, '_leg_l'):
+                continue
+            moving = abs(dx) > 0.015 or abs(dz) > 0.015
+            if moving:
+                # Hadap arah gerak
+                if abs(dx) > abs(dz):
+                    ent.rotation_y = 90 if dx > 0 else -90
+                else:
+                    ent.rotation_y = 0 if dz > 0 else 180
+
+                ent._walk_t += dt * 9.0
+                swing = math.sin(ent._walk_t) * 24.0
+                ent._leg_l.rotation_x =  swing
+                ent._leg_r.rotation_x = -swing
+                ent._arm_l.rotation_x = -swing * 0.55
+                ent._arm_r.rotation_x =  swing * 0.55
+            else:
+                # Idle bob — napas halus
+                ent._walk_t += dt * 1.8
+                bob = math.sin(ent._walk_t) * 3.0
+                ent._leg_l.rotation_x = ent._leg_l.rotation_x * 0.80
+                ent._leg_r.rotation_x = ent._leg_r.rotation_x * 0.80
+                ent._arm_l.rotation_x = bob * 0.4
+                ent._arm_r.rotation_x = -bob * 0.4
 
     def _sync_wild_visuals(self):
         s = self.state

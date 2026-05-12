@@ -1,428 +1,300 @@
-"""
-app.py — Main Ursina Application untuk Lembah Karsa 3D.
-
-Arsitektur:
-  LKApp(Entity) → update() + input() dipanggil Ursina setiap frame.
-  World3D   → render tile 3D
-  Player3D  → controller player
-  EntitiesManager → NPC, mob, wild
-  UIManager → HUD, dialog, panel
-
-Kamera:
-  RF4-style fixed isometric:
-    - Posisi: player + (0, CAM_HEIGHT, -CAM_BACK)
-    - Look-at: player + (0, 0, CAM_TARGET_LIFT)
-    - Smooth lerp via CAM_LERP
-"""
-import math
+import logging
 import random
-
-from ursina import (Ursina, Entity, Vec3, color, camera, window,
-                    AmbientLight, DirectionalLight, time, held_keys)
+from ursina import Ursina, camera, window, color, Vec3, Vec4, time, Entity, DirectionalLight, AmbientLight, lerp
 from ursina.shaders import unlit_shader
 
-from .config import (TILE_SIZE, GROUND_H,
-                     CAM_HEIGHT, CAM_BACK, CAM_TARGET_LIFT, CAM_LERP,
-                     INGAME_MINUTES_PER_REAL_SECOND, FORCE_SLEEP_HOUR,
-                     INVULN_AFTER_HIT_MS, DAYS_PER_SEASON,
-                     STAIRS_DOWN, STAIRS_UP)
-from .state    import GameState
-from .scenes   import SCENES
-from .world    import World3D
-from .player   import Player3D
+# Fix: Override fungsi warna Ursina agar outputnya konsisten Vec4 (0.0 - 1.0).
+# Ini mencegah layar & HUD terbakar warna putih karena kelebihan nilai.
+color.rgb = lambda r, g, b, a=255: Vec4(r/255.0, g/255.0, b/255.0, a/255.0)
+color.rgba = color.rgb
+
+from .state import GameState
+from .world import World3D
+from .player import Player3D
 from .entities import EntitiesManager
-from .panels   import UIManager
+from .panels import UIManager
+from .config import (SCREEN_W, SCREEN_H, CAM_HEIGHT, CAM_BACK, CAM_LERP,
+                     CAM_TARGET_LIFT, INGAME_MINUTES_PER_REAL_SECOND, FORCE_SLEEP_HOUR)
 
-TS = TILE_SIZE
+class GameHandler(Entity):
+    """Menjembatani event update dan input Ursina ke class Game3D."""
+    def __init__(self, game, **kwargs):
+        super().__init__(**kwargs)
+        self.game = game
 
-
-class LKApp(Entity):
-    """Controller utama game — semua sistem dipasang di sini."""
-
-    def __init__(self):
-        super().__init__()
-
-        # ─── STATE ───────────────────────────────────────
-        self.state = GameState.load() or GameState()
-        s = self.state
-
-        # ─── LIGHTING ────────────────────────────────────
-        self._setup_lighting(s.scene_name)
-
-        # ─── SYSTEMS ─────────────────────────────────────
-        self.world   = World3D(s)
-        self.world.load_scene(s.scene_name)
-
-        self.player  = Player3D(s, self.world)
-        self.player.set_tile_pos(s.player_x, s.player_y)
-
-        self.ents    = EntitiesManager(s)
-        self.ents.load_scene(s.scene_name)
-
-        self.ui      = UIManager(s)
-
-        # ─── CAMERA ──────────────────────────────────────
-        camera.orthographic = False
-        camera.fov          = 60
-        # Posisi awal kamera
-        px = s.player_x * TS;  pz = s.player_y * TS
-        camera.position = Vec3(px, CAM_HEIGHT, pz - CAM_BACK)
-        camera.look_at(Vec3(px, 0, pz + CAM_TARGET_LIFT))
-
-        # ─── INTERNAL TIMERS ─────────────────────────────
-        self._ent_t    = 0.0   # timer untuk update entitas
-        self._sched_t  = 0.0   # timer NPC schedule
-
-        print("[LK3D] Game dimulai. Gunakan F1 untuk bantuan kontrol.")
-
-    # ─── URSINA: UPDATE ──────────────────────────────────
     def update(self):
-        dt = time.dt
-        s  = self.state
-        ui = self.ui
+        self.game.update(time.dt)
 
-        # ── Waktu in-game ─────────────────────────────
-        if ui.mode == 'hud':
+    def input(self, key):
+        self.game.input(key)
+
+class Game3D:
+    def __init__(self):
+        logging.info("Inisialisasi Game Engine 3D (Ursina)...")
+        
+        # Inisialisasi Ursina Engine
+        self.app = Ursina(size=(SCREEN_W, SCREEN_H), title='Lembah Karsa 3D', borderless=False)
+        window.color = color.rgb(30, 20, 40)
+        window.fps_counter.enabled = True
+        
+        # Pencahayaan — arah lebih datar agar detail karakter chibi terlihat
+        self.sun = DirectionalLight(shadows=False)
+        self.sun.look_at(Vec3(-1, -1.5, -0.8))
+        # Ambient hangat: cream kekuningan (Animal Crossing golden hour feel)
+        self.ambient = AmbientLight(color=color.rgb(95, 90, 78, 255))
+
+        # Setup Awan (Minecraft-style blocky clouds) melayang di atas peta
+        self.clouds = []
+        for _ in range(8):
+            cloud = Entity(
+                model='cube',
+                shader=unlit_shader,
+                transparent=True,
+                scale=(random.uniform(8, 16), 0.5, random.uniform(5, 12)),
+                position=(random.uniform(-10, 60), 25, random.uniform(-10, 60))
+            )
+            self.clouds.append(cloud)
+
+        # Setup Partikel Hujan (Object pool bergaya balok)
+        self.rain_drops = []
+        for _ in range(150):
+            drop = Entity(
+                model='cube',
+                shader=unlit_shader,
+                color=color.rgb(130, 185, 255, 160),
+                transparent=True,
+                scale=(0.04, 1.2, 0.04),
+                position=(random.uniform(-10, 50), random.uniform(2, 18),
+                          random.uniform(-10, 50)),
+                enabled=False
+            )
+            self.rain_drops.append(drop)
+
+        # Inisialisasi suara prosedural (pygame.mixer, tidak konflik dengan panda3d audio)
+        from .sound import init_sound, build_sounds
+        if init_sound():
+            build_sounds()
+
+        logging.info("Memuat data Game State...")
+        self.state = GameState.load() or GameState()
+
+        logging.info("Membangun sistem UI, Dunia, dan Entitas...")
+        self.panels = UIManager(self.state)
+        self.world = World3D(self.state)
+        self.entities = EntitiesManager(self.state)
+        
+        # Load map awal
+        self.world.load_scene(self.state.scene_name)
+        self.entities.load_scene(self.state.scene_name)
+
+        logging.info("Membangun Player...")
+        self.player = Player3D(self.state, self.world)
+
+        # Setup Kamera (Isometric fixed-angle)
+        camera.orthographic = True
+        camera.fov          = 16
+        camera.rotation_x   = 29   # arctan(CAM_HEIGHT / sqrt(CAM_BACK²+CAM_BACK²)) ≈ 29°
+        camera.rotation_y   = 45
+        camera.position     = (self.player.position +
+                                Vec3(0, CAM_TARGET_LIFT, 0) +
+                                Vec3(-CAM_BACK, CAM_HEIGHT, -CAM_BACK))
+
+        # Inisialisasi lingkungan langsung sesuai waktu awal (bukan fade dari gelap)
+        self._init_env()
+
+        # Handler untuk Game Loop
+        self.handler = GameHandler(self)
+
+    def update(self, dt):
+        s = self.state
+        # Update UI HUD
+        self.panels.update(s, dt)
+
+        if self.panels.mode == 'hud':
+            # ── Maju waktu in-game ──────────────────────────
             s.time_minutes += INGAME_MINUTES_PER_REAL_SECOND * dt
             if s.time_minutes >= 1440:
                 s.time_minutes -= 1440
-                self._midnight()
+            # Paksa tidur lewat tengah malam
+            if s.get_hour() >= FORCE_SLEEP_HOUR:
+                self.player._advance_day()
+                self.panels.flash_msg("Sudah larut malam — hari baru!", 2.5)
 
-        # ── World ─────────────────────────────────────
-        self.world.update(dt)
-
-        # ── Entities ──────────────────────────────────
-        self._ent_t += dt
-        if self._ent_t >= 0.05:
-            self.ents.update(self._ent_t)
-            self._ent_t = 0
-
-        # ── Player (hanya saat 'hud') ──────────────────
-        if ui.mode == 'hud':
             self.player.tick()
-            self._check_portals()
-            self._check_mob_hit()
+            # Jika HP habis → pingsan, balik ke rumah, mulai hari baru
+            if s.hp <= 0:
+                s.scene_name = 'house'
+                s.player_x, s.player_y = 7.0, 8.0
+                self.player._advance_day()
+                self.panels.flash_msg("Kamu pingsan! Terbangun di rumah...", 3.5)
+            self.entities.update(dt)
+            self.world.update(dt)
 
-        # ── UI ────────────────────────────────────────
-        ui.update(s, dt)
+            # Cek transisi scene (misal keluar pintu / portal)
+            current_scene = s.scene_name
+            if current_scene != self.world.scene_name or (current_scene == 'dungeon' and getattr(self.world, 'dungeon_level', -1) != s.dungeon_level):
+                logging.info(f"Pindah ke scene: {current_scene} (Level Dungeon: {s.dungeon_level})")
+                self.world.dungeon_level = s.dungeon_level
+                self.world.load_scene(current_scene)
+                self.entities.load_scene(current_scene)
+                self.player.set_tile_pos(s.player_x, s.player_y)
+                self.player._set_initial_rotation()
+                self._init_env()  # Snap pencahayaan langsung, tidak lerp dari gelap/putih
 
-        # ── Langit dinamis (siang/malam/cuaca) ────────
-        self._update_sky()
+            # Kamera mengikuti pemain (smooth lerp) — fokus ke badan, bukan kaki
+            look_target = self.player.position + Vec3(0, CAM_TARGET_LIFT, 0)
+            target_cam  = look_target + Vec3(-CAM_BACK, CAM_HEIGHT, -CAM_BACK)
+            camera.position += (target_cam - camera.position) * CAM_LERP * dt
 
-        # ── Kamera smooth follow ───────────────────────
-        self._update_camera(dt)
+            # Efek pencahayaan (Siang/Sore/Malam) dan Indoor/Outdoor
+            is_indoor = self.world.scene_obj.indoor if self.world.scene_obj else False
+            is_raining = (self.state.weather in ('Hujan', 'Badai')) and not is_indoor
 
-    # ─── URSINA: INPUT ───────────────────────────────────
+            if is_indoor:
+                # Indoor: tidak ada matahari, ambient hangat seperti lampu dalam ruangan
+                target_sun   = color.rgb(0, 0, 0)
+                target_amb   = color.rgb(150, 140, 160, 255)
+                target_sky   = color.rgb(10, 5, 15)
+                target_cloud = color.rgb(0, 0, 0, 0)
+            else:
+                hour = (self.state.time_minutes / 60.0) % 24.0
+                # Catatan: ambient + sun×dot ≤ 100% agar warna tidak overflow putih
+                # ambient max ~70, sun max ~185 (di floor dot≈0.82: 70/255+185/255×0.82 ≈ 87%)
+                if 6 <= hour < 17:
+                    # Siang: sinar matahari hangat keemasan (Animal Crossing golden feel)
+                    target_sun = color.rgb(255, 248, 215) if not is_raining else color.rgb(145, 145, 158)
+                    target_amb = color.rgb(95, 90, 78, 255) if not is_raining else color.rgb(62, 62, 72, 255)
+                    target_sky = color.rgb(128, 205, 248) if not is_raining else color.rgb(88, 98, 115)
+                    target_cloud = color.rgb(248, 248, 255, 175) if not is_raining else color.rgb(145, 148, 162, 215)
+                elif 17 <= hour < 19:
+                    # Senja: oranye kemerahan lembut
+                    target_sun = color.rgb(255, 162, 72) if not is_raining else color.rgb(148, 95, 72)
+                    target_amb = color.rgb(88, 55, 45, 255) if not is_raining else color.rgb(55, 38, 35, 255)
+                    target_sky = color.rgb(248, 138, 88) if not is_raining else color.rgb(115, 82, 82)
+                    target_cloud = color.rgb(255, 195, 148, 145) if not is_raining else color.rgb(135, 108, 102, 195)
+                else:
+                    # Malam: biru gelap lembut (bukan hitam total)
+                    target_sun   = color.rgb(35, 48, 92)
+                    target_amb   = color.rgb(28, 28, 52, 255)
+                    target_sky   = color.rgb(18, 12, 42)
+                    target_cloud = color.rgb(45, 45, 72, 75)
+            
+            self.sun.color = lerp(self.sun.color, target_sun, dt)
+            self.ambient.color = lerp(self.ambient.color, target_amb, dt)
+            window.color = lerp(window.color, target_sky, dt)
+
+            # Animasi awan melayang dan transisi warnanya
+            for cloud in self.clouds:
+                cloud.color = lerp(cloud.color, target_cloud, dt)
+                cloud.x += 1.2 * dt
+                if cloud.x > 70:
+                    cloud.x = -20
+                    cloud.z = random.uniform(-10, 60)
+
+            # Animasi Hujan
+            for drop in self.rain_drops:
+                drop.enabled = is_raining
+                if is_raining:
+                    drop.y -= 25 * dt
+                    if drop.y < -0.5:
+                        drop.x = self.player.x + random.uniform(-15, 15)
+                        drop.z = self.player.z + random.uniform(-15, 15)
+                        drop.y = random.uniform(10, 25)
+
     def input(self, key):
-        ui = self.ui
-        s  = self.state
-
-        # ── Global hotkeys ────────────────────────────
-        if key == 'f5':
-            if s.save():
-                ui.flash_msg("Game tersimpan! (F5)", 1.5)
-            return
-        if key == 'f9':
-            loaded = GameState.load()
-            if loaded:
-                self.state = loaded
-                self._reload_all()
-                ui.flash_msg("Game dimuat! (F9)", 1.5)
-            return
-        if key == 'f1':
-            ui.flash_msg(
-                "WASD:Gerak  SHIFT:Lari  SPACE:Alat\n"
-                "E:Bicara  G:Hadiah  Z:Serang  F:Tangkap  T:Tidur\n"
-                "1-8:Alat  Q/R:Benih  I/J/M/H:Panel\n"
-                "K:Toko (shop scene)  U:Bengkel (smith)", 5.0)
+        # Intercept input saat UI / Dialog aktif
+        if self.panels.mode == 'dialog':
+            if key in ('space', 'e', 'enter'):
+                self.panels.advance_dialog()
             return
 
-        # ── Dialog mode ───────────────────────────────
-        if ui.mode == 'dialog':
-            if key in ('e', 'space', 'enter'):
-                done = ui.advance_dialog()
-                if done:
-                    ui.mode = 'hud'
-            elif key == 'escape':
-                ui._end_dialog()
-                ui.mode = 'hud'
-            return
-
-        # ── Panel mode ────────────────────────────────
-        if ui.mode == 'panel':
+        if self.panels.mode == 'panel':
             if key == 'escape':
-                ui.close_all()
-                return
-            # Angka 1-9 untuk shop/crafting
-            if key in '123456789':
-                msg = ui.panel_action(int(key))
+                self.panels.close_all()
+            elif key.isdigit():
+                msg = self.panels.panel_action(int(key))
                 if msg:
-                    ui.flash_msg(msg, 1.4)
+                    self.panels.flash_msg(msg)
             return
 
-        # ── Play mode ─────────────────────────────────
-        if key == 'escape':
-            return
-
-        # Tool selection 1-8
-        if key in '12345678':
-            s.tool_index = int(key) - 1
-            return
-
-        # Shop (K) — hanya di scene 'shop' atau 'town'
-        if key == 'k':
-            if s.scene_name in ('shop', 'town'):
-                ui.open_panel('shop')
-            else:
-                ui.flash_msg("Toko hanya bisa diakses di Warung Bu Sari.", 1.5)
-            return
-
-        # Crafting (U) — hanya di scene 'smith'
-        if key == 'u':
-            if s.scene_name == 'smith':
-                ui.open_panel('crafting')
-            else:
-                ui.flash_msg("Crafting hanya di Bengkel Pak Budi.", 1.5)
-            return
-
-        # Gift (G) — beri hadiah ke NPC terdekat
-        if key == 'g':
-            self.player.give_gift(self.ents, ui)
-            return
-
-        # Panel toggles
-        panel_keys = {'i': 'inventory', 'j': 'quest', 'm': 'map', 'h': 'relations'}
-        if key in panel_keys:
-            ui.open_panel(panel_keys[key])
-            return
-
-        # Player action keys
-        self.player.handle_input(key, self.ents, ui)
-
-    # ─── CAMERA ──────────────────────────────────────────
-    def _update_camera(self, dt: float):
-        px = self.player.x
-        pz = self.player.z
-        target = Vec3(px, CAM_HEIGHT, pz - CAM_BACK)
-        look_pt= Vec3(px, 0, pz + CAM_TARGET_LIFT)
-
-        # Smooth lerp
-        lerp_f = min(1.0, CAM_LERP * dt)
-        camera.position = Vec3(
-            camera.x + (target.x - camera.x) * lerp_f,
-            camera.y + (target.y - camera.y) * lerp_f,
-            camera.z + (target.z - camera.z) * lerp_f,
-        )
-        camera.look_at(look_pt)
-
-    # ─── PORTALS ─────────────────────────────────────────
-    def _check_portals(self):
-        s  = self.state
-        sc = SCENES.get(s.scene_name)
-        if not sc: return
-        px, py = self.player.get_tile_pos()
-        for portal in sc.portals:
-            ptx, pty, dest, dx, dy = portal
-            if px == ptx and py == pty:
-                self._transition_to(dest, dx, dy)
+        if self.panels.mode == 'hud':
+            # Input untuk aksi pemain (gerak/tool/serang/tangkap)
+            if self.player.handle_input(key, self.entities, self.panels):
                 return
 
-    def _transition_to(self, dest: str, dx: float, dy: float):
-        s = self.state
+            # Hotkeys menu
+            if key == 'i':
+                self.panels.open_panel('inventory')
+            elif key == 'm':
+                self.panels.open_panel('map')
+            elif key == 'j':
+                self.panels.open_panel('quest')
+            elif key == 'h':
+                self.panels.open_panel('relations')
+            elif key == 'k':
+                if self.state.scene_name == 'shop':
+                    self.panels.open_panel('shop')
+                else:
+                    self.panels.flash_msg("Pergi ke Warung Bu Sari!")
+            elif key == 'u':
+                if self.state.scene_name == 'smith':
+                    self.panels.open_panel('crafting')
+                else:
+                    self.panels.flash_msg("Pergi ke Bengkel Budi!")
+            elif key == 'f1':
+                self.panels.open_panel('help')
+            elif key == 'f5':
+                if self.state.save():
+                    self.panels.flash_msg("[F5] Game Tersimpan!")
+            elif key == 'f9':
+                loaded = GameState.load()
+                if loaded:
+                    self.state = loaded
+                    self.world.load_scene(self.state.scene_name)
+                    self.entities.load_scene(self.state.scene_name)
+                    self.player.state = self.state
+                    self.player.set_tile_pos(self.state.player_x, self.state.player_y)
+                    self.player._set_initial_rotation()
+                    self.panels.flash_msg("[F9] Game Dimuat!")
 
-        # Naik/turun dungeon via stairs
-        tile = self.world.get_tile(*self.player.get_tile_pos())
-        if tile == STAIRS_DOWN and dest == 'dungeon':
-            s.dungeon_level = max(1, s.dungeon_level + 1)
-            self._enter_dungeon()
-            return
-        elif tile == STAIRS_UP and s.scene_name == 'dungeon':
-            if s.dungeon_level <= 1:
-                dest = 'naga_cave';  dx = 7;  dy = 9
-                s.dungeon_level = 0
-            else:
-                s.dungeon_level -= 1
-                self._enter_dungeon()
-                return
+    # ─── ENVIRONMENT INIT ───────────────────────────────────
+    def _init_env(self):
+        """Snap pencahayaan langsung sesuai scene & jam — dipanggil saat init dan tiap transisi scene."""
+        s        = self.state
+        hour     = (s.time_minutes / 60.0) % 24.0
+        is_indoor= self.world.scene_obj.indoor if self.world.scene_obj else False
 
-        s.scene_name = dest
-        s.player_x   = float(dx)
-        s.player_y   = float(dy)
-
-        self.world.load_scene(dest)
-        self.ents.load_scene(dest)
-        self.player.set_tile_pos(dx, dy)
-        self._setup_lighting(dest)
-
-    def _enter_dungeon(self):
-        s = self.state
-        from .dungeon import generate_dungeon_level
-        import random
-        seed = random.randint(0, 999999)
-        grid, spx, spy, mobs = generate_dungeon_level(s.dungeon_level, seed)
-
-        # Update dungeon scene
-        SCENES['dungeon'].tiles = grid
-        SCENES['dungeon'].w     = len(grid[0])
-        SCENES['dungeon'].h     = len(grid)
-        s.dungeon_tiles = grid
-        s.dungeon_seed  = seed
-        s.mobs          = mobs
-        s.scene_name    = 'dungeon'
-        s.player_x      = float(spx)
-        s.player_y      = float(spy)
-        s.stats['deepest_level'] = max(s.stats.get('deepest_level', 0), s.dungeon_level)
-
-        self.world.load_scene('dungeon')
-        self.ents.load_scene('dungeon')
-        self.ents.spawn_mobs(mobs)
-        self.player.set_tile_pos(spx, spy)
-        self._setup_lighting('dungeon')
-        self.ui.flash_msg(f"Masuk Gua Level {s.dungeon_level}!", 1.5)
-
-    # ─── MOB HIT CHECK ───────────────────────────────────
-    def _check_mob_hit(self):
-        s = self.state
-        if s.scene_name != 'dungeon': return
-        if s.invuln_timer_ms > 0:
-            s.invuln_timer_ms = max(0, s.invuln_timer_ms - time.dt * 1000)
-            return
-
-        px, py = self.player.get_float_tile()
-        for mob in s.mobs:
-            dist = math.sqrt((mob['x']-px)**2 + (mob['y']-py)**2)
-            atk  = 1.5 if mob.get('is_boss') else 1.0
-            if dist <= atk and mob.get('attack_cooldown_ms', 0) <= 0:
-                s.hp = max(0, s.hp - mob['damage'])
-                s.invuln_timer_ms = INVULN_AFTER_HIT_MS
-                self.player._invuln = INVULN_AFTER_HIT_MS
-                mob['attack_cooldown_ms'] = 1000
-                if s.hp <= 0:
-                    self._player_ko()
-                break
-
-    def _player_ko(self):
-        s = self.state
-        s.hp     = s.max_hp // 2
-        s.energy = max(0, s.energy - 30)
-        s.mobs.clear()
-        s.dungeon_level = 0
-        self._transition_to('house', 7, 9)
-        self.ui.flash_msg("Kamu pingsan! Kembali ke rumah...", 3.0)
-
-    # ─── MIDNIGHT ────────────────────────────────────────
-    def _midnight(self):
-        s = self.state
-        if s.get_hour() >= FORCE_SLEEP_HOUR:
-            s.day           += 1
-            s.day_in_season += 1
-            s.time_minutes   = 360.0
-            s.energy         = s.max_energy
-            s.hp             = s.max_hp
-            for soil in s.soil.values():
-                if soil.get('watered') and soil.get('crop'):
-                    soil['age'] = soil.get('age', 0) + 1
-                    soil['watered'] = False
-            if s.day_in_season > DAYS_PER_SEASON:
-                s.day_in_season = 1
-                s.season_index  = (s.season_index + 1) % 4
-            from .entities import respawn_wild_at_morning
-            respawn_wild_at_morning(s)
-            s.weather = random.choice(self._WEATHER_POOL.get(s.get_season(), ['Cerah']))
-
-    # ─── LIGHTING ────────────────────────────────────────
-    _DARK_SCENES   = frozenset(('dungeon', 'naga_cave'))
-    _INDOOR_SCENES = frozenset(('house', 'shop', 'clinic', 'studio', 'smith', 'greenhouse'))
-    _WEATHER_POOL  = {
-        'Semi':   ['Cerah', 'Cerah', 'Mendung', 'Hujan'],
-        'Panas':  ['Cerah', 'Cerah', 'Cerah', 'Mendung'],
-        'Gugur':  ['Cerah', 'Mendung', 'Mendung', 'Hujan'],
-        'Dingin': ['Cerah', 'Mendung', 'Hujan', 'Hujan'],
-    }
-
-    def _setup_lighting(self, scene_name: str):
-        if scene_name in self._DARK_SCENES:
-            camera.background = color.rgb(10, 6, 16)
-        elif scene_name in self._INDOOR_SCENES:
-            camera.background = color.rgb(90, 82, 70)
+        if is_indoor:
+            sun_col   = color.rgb(0, 0, 0)
+            amb_col   = color.rgb(150, 140, 160, 255)
+            sky_col   = color.rgb(10, 5, 15)
+            cloud_col = color.rgb(0, 0, 0, 0)
+        elif 6 <= hour < 17:
+            sun_col   = color.rgb(255, 248, 215)
+            amb_col   = color.rgb(95, 90, 78, 255)
+            sky_col   = color.rgb(128, 205, 248)
+            cloud_col = color.rgb(248, 248, 255, 175)
+        elif 17 <= hour < 19:
+            sun_col   = color.rgb(255, 162, 72)
+            amb_col   = color.rgb(88, 55, 45, 255)
+            sky_col   = color.rgb(248, 138, 88)
+            cloud_col = color.rgb(255, 195, 148, 145)
         else:
-            self._update_sky()
+            sun_col   = color.rgb(35, 48, 92)
+            amb_col   = color.rgb(28, 28, 52, 255)
+            sky_col   = color.rgb(18, 12, 42)
+            cloud_col = color.rgb(45, 45, 72, 75)
 
-    def _update_sky(self):
-        s = self.state
-        if s.scene_name in self._DARK_SCENES or s.scene_name in self._INDOOR_SCENES:
-            return
-        hour = s.get_hour()
-        if hour < 5 or hour >= 20:
-            r, g, b = 8, 12, 40
-        elif hour < 6:
-            r, g, b = 80, 40, 90
-        elif hour < 7:
-            r, g, b = 255, 130, 60
-        elif hour < 18:
-            r, g, b = 120, 180, 245
-        elif hour < 19:
-            r, g, b = 220, 110, 50
-        else:
-            r, g, b = 90, 45, 70
-        if s.weather == 'Hujan':
-            r = int(r * 0.55); g = int(g * 0.58); b = int(b * 0.72)
-        elif s.weather == 'Mendung':
-            r = int(r * 0.75); g = int(g * 0.78); b = int(b * 0.85)
-        camera.background = color.rgb(r, g, b)
+        self.sun.color     = sun_col
+        self.ambient.color = amb_col
+        window.color       = sky_col
+        for cloud in self.clouds:
+            cloud.color = cloud_col
 
-    # ─── RELOAD ──────────────────────────────────────────
-    def _reload_all(self):
-        s = self.state
-        self.world.load_scene(s.scene_name)
-        self.ents.load_scene(s.scene_name)
-        self.player.set_tile_pos(s.player_x, s.player_y)
-        self._setup_lighting(s.scene_name)
+    def run(self):
+        logging.info("Memulai Game Loop utama...")
+        self.app.run()
 
-
-# ─── ENTRY POINT ─────────────────────────────────────────
 def run():
-    app = Ursina(
-        title     = 'Lembah Karsa 3D',
-        borderless= False,
-        fullscreen= False,
-        development_mode=False,
-        vsync     = True,
-    )
-
-    window.size             = (1280, 720)
-    window.fps_counter.enabled = True
-    window.exit_button.visible = False
-
-    # Unlit shader: warna entity tampil langsung tanpa perhitungan lighting.
-    # Wajib diset sebelum LKApp() agar semua entity mewarisinya.
-    Entity.default_shader = unlit_shader
-
-    camera.background = color.rgb(120, 180, 245)
-
-    game = LKApp()
-
-    print("=" * 50)
-    print(" LEMBAH KARSA 3D — Farming RPG Nusantara")
-    print(" Framework: Ursina Engine (Panda3D)")
-    print(" Terinspirasi: Rune Factory 4")
-    print("=" * 50)
-    print(" Kontrol:")
-    print("   WASD / Arrow  = Bergerak")
-    print("   SHIFT         = Lari")
-    print("   SPACE         = Pakai alat")
-    print("   E             = Bicara / Interaksi")
-    print("   Z             = Serang (butuh pedang)")
-    print("   F             = Tangkap makhluk")
-    print("   T             = Tidur (di rumah)")
-    print("   G             = Beri hadiah ke NPC terdekat")
-    print("   1-8           = Pilih alat")
-    print("   Q / R         = Ganti benih")
-    print("   I / J / M / H = Inventori / Quest / Peta / Hubungan")
-    print("   K             = Toko Bu Sari (di scene shop)")
-    print("   U             = Bengkel Pak Budi (di scene smith)")
-    print("   F5 / F9       = Simpan / Muat")
-    print("   F1            = Bantuan kontrol")
-    print("=" * 50)
-
-    app.run()
+    game = Game3D()
+    game.run()

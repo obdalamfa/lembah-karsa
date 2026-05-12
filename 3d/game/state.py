@@ -31,6 +31,10 @@ class GameState:
     max_hp:          int   = PLAYER_BASE_HP
     invuln_timer_ms: float = 0.0
 
+    # python-2d-game health_and_mana.py pattern: passive regen + buff tracking
+    hp_regen_rate: float = 0.8   # HP per detik saat idle
+    buffs: dict = field(default_factory=dict)  # {buff_name: sisa_ms}
+
     pickaxe_tier: int = 0
     sword_id:     str = ''
 

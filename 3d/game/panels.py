@@ -13,10 +13,10 @@ Layout layar (Ursina screen coords: -0.5 ke 0.5):
 Dialog box: muncul di bawah tengah.
 Panel (inventori, quest, dll.): overlay penuh semi-transparan.
 """
-from ursina import (Entity, Text, Button, color, camera, destroy,
+from ursina import (Entity, Text, color, camera, destroy,
                     Vec2, Vec4, invoke)
 
-from .config import TOOLS, SEASON_NAMES
+from .config import SEASON_NAMES
 from .data import CROPS
 from .data import (HUMAN_NPCS, SUPERNATURAL_NPCS, ANIMAL_NPCS,
                    QUEST_STAGES, SWORD_RECIPES, PICKAXE_RECIPES, SHOP_ITEMS)
@@ -25,12 +25,15 @@ _ALL_NPCS = {**HUMAN_NPCS, **SUPERNATURAL_NPCS, **ANIMAL_NPCS}
 
 
 def _ui(model='quad', **kw):
+    # Tidak pakai shader agar color property bekerja di camera.ui space.
+    # transparent=True wajib agar alpha channel diterapkan oleh renderer.
+    kw.setdefault('transparent', True)
     return Entity(parent=camera.ui, model=model, **kw)
 
 
 def _txt(text='', pos=(0, 0), scale=1.0, col=color.white, **kw):
     return Text(text, parent=camera.ui, position=pos,
-                scale=scale, color=col, **kw)
+                scale=scale * 1.8, color=col, **kw)
 
 
 class UIManager:
@@ -62,104 +65,146 @@ class UIManager:
             self._flash_t -= dt
             if self._flash_t <= 0 and self._flash_ent:
                 self._flash_ent.enabled = False
+                if hasattr(self, '_flash_bg'):
+                    self._flash_bg.enabled = False
+
+    _TOOL_NAMES = ['Cangkul','Siram','Tanam','Panen','Kapak','Hadiah','Pickaxe','Pedang']
 
     # ─── PUBLIC: HUD ─────────────────────────────────────
     def _build_hud(self):
-        s = self.state
-        x0, y0 = -0.86, 0.46   # posisikan sedikit lebih ke tengah
+        BY = -0.450   # bar center Y
+        BH = 0.096    # bar height
+        SY = BY + BH * 0.5   # separator line Y (top of bar)
 
-        # Background strip kiri lebih gelap dan rapi
-        self._hud_bg = _ui(scale=(0.35, 0.25), position=(-0.72, 0.36),
-                           color=color.rgba(15, 15, 25, 200))
+        # Colors stored as instance attrs (used in _refresh_hud)
+        self._C_HP   = color.rgb(220,  55,  55)
+        self._C_EN   = color.rgb( 55, 205,  75)
+        self._C_GOLD = color.rgb(255, 215,  60)
+        _C_BG    = color.rgb( 20,  15,  30, 220)
+        _C_SEP   = color.rgb(180, 160, 120, 220)
+        _C_HP_BG = color.rgb( 60,  10,  10, 160)
+        _C_EN_BG = color.rgb( 10,  40,  10, 160)
+        _C_TIME  = color.rgb(255, 255, 210)
+        _C_DATE  = color.rgb(170, 200, 255)
+        _C_SCENE = color.rgb(140, 255, 160)
+        _C_WTH   = color.rgb(255, 240, 130)
+        _C_TOOL  = color.rgb(255, 240, 100)
+        _C_SEED  = color.rgb(155, 255, 155)
+        _C_BUFF  = color.rgb(120, 255, 180)
+        _C_LBL   = color.rgb(150, 140, 170)
+        _C_TBORD = color.rgb(100,  75, 160, 200)
 
-        # HP bar label + bar
-        self._hp_lbl = _txt('HP', pos=(x0, y0), scale=1.0,
-                             col=color.rgb(255, 120, 120))
-        self._hp_bg  = _ui(scale=(0.22, 0.025), position=(x0+0.15, y0+0.004),
-                            color=color.rgba(40, 5, 5, 200))
-        self._hp_bar = _ui(scale=(0.22, 0.022), position=(x0+0.15, y0+0.004),
-                            color=color.rgb(240, 60, 60))
+        # ── Full-width bottom bar + gold top separator ────────
+        self._bar_bg  = _ui(scale=(2.0, BH), position=(0, BY), color=_C_BG)
+        self._bar_sep = _ui(scale=(2.0, 0.003), position=(0, SY), color=_C_SEP)
 
-        # Energy bar
-        self._en_lbl = _txt('EN', pos=(x0, y0-0.04), scale=1.0,
-                             col=color.rgb(120, 230, 255))
-        self._en_bg  = _ui(scale=(0.22, 0.025), position=(x0+0.15, y0-0.036),
-                            color=color.rgba(5, 30, 40, 200))
-        self._en_bar = _ui(scale=(0.22, 0.022), position=(x0+0.15, y0-0.036),
-                            color=color.rgb(60, 190, 255))
+        # ── LEFT: HP / EN bars + Gold ─────────────────────────
+        BAR_W = 0.215
+        BAR_X = -0.680   # bar center x
+        LBL_X = -0.875   # label left edge x
+        VAL_X = -0.568   # value text left x (right of bar)
 
-        # Gold
-        self._gold_txt = _txt('100G', pos=(x0, y0-0.08), scale=1.1,
-                               col=color.rgb(240, 210, 80))
+        hy = BY + 0.024   # HP row center Y
+        self._hp_lbl = _txt('HP', pos=(LBL_X, hy + 0.010), scale=0.80, col=_C_LBL)
+        self._hp_bg  = _ui(scale=(BAR_W, 0.016), position=(BAR_X, hy), color=_C_HP_BG)
+        self._hp_bar = _ui(scale=(BAR_W, 0.013), position=(BAR_X, hy), color=self._C_HP)
+        self._hp_val = _txt('100/100', pos=(VAL_X, hy + 0.010), scale=0.76, col=color.white)
 
-        # Tool + seed
-        self._tool_txt = _txt('Cangkul', pos=(x0, y0-0.12), scale=0.9,
-                               col=color.rgb(200, 200, 200))
-        self._seed_txt = _txt('Lobak', pos=(x0, y0-0.16), scale=0.9,
-                               col=color.rgb(150, 255, 150))
+        ey = BY + 0.002   # EN row center Y
+        self._en_lbl = _txt('EN', pos=(LBL_X, ey + 0.010), scale=0.80, col=_C_LBL)
+        self._en_bg  = _ui(scale=(BAR_W, 0.016), position=(BAR_X, ey), color=_C_EN_BG)
+        self._en_bar = _ui(scale=(BAR_W, 0.013), position=(BAR_X, ey), color=self._C_EN)
+        self._en_val = _txt('100/100', pos=(VAL_X, ey + 0.010), scale=0.76, col=color.white)
 
-        # Waktu / tanggal (kanan atas)
-        self._time_txt = _txt('06:00', pos=(0.60, 0.47), scale=1.1,
-                               col=color.white)
-        self._date_txt = _txt('Hari 1 | Semi', pos=(0.55, 0.44), scale=0.85,
-                               col=color.rgb(200, 220, 255))
-        self._scene_txt= _txt('Kebun Paman Arsa', pos=(0.40, 0.41), scale=0.75,
-                               col=color.rgb(180, 255, 180))
-        self._weather_txt=_txt('Cerah', pos=(0.68, 0.44), scale=0.75,
-                               col=color.rgb(220, 220, 100))
+        self._gold_txt = _txt('[G] 0G', pos=(LBL_X, BY - 0.022), scale=0.88, col=self._C_GOLD)
+        self._buff_txt = _txt('',       pos=(LBL_X, BY - 0.038), scale=0.74, col=_C_BUFF)
 
-        # Kontrol mini (pojok kanan bawah)
-        hints = ("WASD:Gerak  SHIFT:Lari  SPACE:Alat\n"
-                 "E:Bicara  G:Hadiah  Z:Serang  F:Tangkap\n"
-                 "1-8:Alat  Q/R:Benih  I/J/M/H:Panel\n"
-                 "K:Toko(shop)  U:Bengkel(smith)\n"
-                 "F5:Simpan  F9:Muat  T:Tidur(rumah)")
-        self._hint_txt = _txt(hints, pos=(0.05, -0.41), scale=0.60,
-                               col=color.rgba(200, 200, 200, 160))
+        # ── CENTER: Active tool box ────────────────────────────
+        self._tool_bord = _ui(scale=(0.262, BH + 0.002), position=(0, BY), color=_C_TBORD)
+        self._tool_bg   = _ui(scale=(0.256, BH - 0.004), position=(0, BY),
+                              color=color.rgb(28, 18, 48, 230))
+        self._tool_lbl  = _txt('ALAT AKTIF', pos=(-0.098, SY - 0.004), scale=0.66, col=_C_LBL)
+        self._tool_name = Text('Cangkul', parent=camera.ui,
+                               position=(0, BY + 0.010), scale=1.47,
+                               color=_C_TOOL, origin=(0, 0))
+        self._seed_txt  = Text('',        parent=camera.ui,
+                               position=(0, BY - 0.020), scale=1.1,
+                               color=_C_SEED, origin=(0, 0))
 
-        # Flash message (tengah bawah)
-        self._flash_ent = _txt('', pos=(0, -0.35), scale=1.1,
-                                col=color.rgb(255, 240, 100))
+        # ── RIGHT: Time / Weather / Date / Scene ──────────────
+        self._time_txt    = _txt('06:00',          pos=(0.235, BY + 0.034), scale=1.45, col=_C_TIME)
+        self._weather_txt = _txt('^ Cerah',         pos=(0.420, BY + 0.030), scale=0.84, col=_C_WTH)
+        self._date_txt    = _txt('Hari 1 | Semi',   pos=(0.235, BY + 0.000), scale=0.80, col=_C_DATE)
+        self._scene_txt   = _txt('> Kebun',         pos=(0.235, BY - 0.022), scale=0.80, col=_C_SCENE)
+
+        # ── Flash message tengah ───────────────────────────────
+        self._flash_bg = _ui(scale=(0.78, 0.068), position=(0, 0.108),
+                             color=color.rgb(8, 4, 22, 235))
+        self._flash_bg.enabled = False
+        self._flash_ent = Text('', parent=camera.ui, position=(0, 0.108),
+                               scale=1.75, color=color.rgb(255, 245, 80),
+                               origin=(0, 0))
         self._flash_ent.enabled = False
 
     def _refresh_hud(self):
         s = self.state
+        BAR_W = 0.215
+        BAR_X = -0.680
 
         # HP bar
         hp_r = max(0.001, s.hp / max(s.max_hp, 1))
-        self._hp_bar.scale_x = 0.22 * hp_r
-        self._hp_bar.x = -0.86 + 0.15 - 0.11 * (1 - hp_r)
-        self._hp_lbl.text = f'HP {s.hp}/{s.max_hp}'
+        self._hp_bar.scale_x = BAR_W * hp_r
+        self._hp_bar.x = BAR_X - BAR_W / 2 * (1 - hp_r)
+        if hp_r > 0.6:
+            self._hp_bar.color = color.rgb(55, 210, 80)
+        elif hp_r > 0.3:
+            self._hp_bar.color = color.rgb(255, 170, 30)
+        else:
+            self._hp_bar.color = self._C_HP
+        self._hp_val.text = f'{int(s.hp)}/{s.max_hp}'
 
-        # Energy bar
+        # EN bar
         en_r = max(0.001, s.energy / max(s.max_energy, 1))
-        self._en_bar.scale_x = 0.22 * en_r
-        self._en_bar.x = -0.86 + 0.15 - 0.11 * (1 - en_r)
-        self._en_lbl.text = f'EN {s.energy}/{s.max_energy}'
+        self._en_bar.scale_x = BAR_W * en_r
+        self._en_bar.x = BAR_X - BAR_W / 2 * (1 - en_r)
+        self._en_bar.color = color.rgb(220, 80, 55) if en_r <= 0.3 else self._C_EN
+        self._en_val.text = f'{int(s.energy)}/{s.max_energy}'
 
-        # Gold
-        self._gold_txt.text = f'Emas: {s.gold}G'
+        # Gold + buff
+        self._gold_txt.text = f'[G] {s.gold}G'
+        self._buff_txt.text = '+'.join(b.upper() for b in s.buffs) if s.buffs else ''
 
-        # Tool + seed
-        tool_name = TOOLS[s.tool_index] if s.tool_index < len(TOOLS) else '?'
-        self._tool_txt.text = f'[{s.tool_index+1}] {tool_name}'
-        seed_name = CROPS.get(s.seed_key, {}).get('name', s.seed_key)
-        self._seed_txt.text = f'Benih: {seed_name}'
+        # Active tool name
+        self._tool_name.text = self._TOOL_NAMES[min(s.tool_index, len(self._TOOL_NAMES) - 1)]
 
-        # Waktu & tanggal
-        self._time_txt.text  = s.get_time_str()
+        # Seed hint (shown when Tanam/Panen active)
+        if s.tool_index in (2, 3):
+            seed_name = CROPS.get(s.seed_key, {}).get('name', s.seed_key)
+            seed_qty  = s.inventory.get(s.seed_key + '_seed', 0)
+            self._seed_txt.text = f'Q/R: {seed_name} x{seed_qty}'
+        else:
+            self._seed_txt.text = '[1-8] pilih alat'
+
+        # Time / weather
+        self._time_txt.text = s.get_time_str()
+        w_icons = {'Cerah': '^', 'Hujan': '~', 'Badai': '!', 'Mendung': '-', 'Berangin': '='}
+        self._weather_txt.text = f"{w_icons.get(s.weather, '?')} {s.weather}"
+
+        # Date / scene
         season_n = SEASON_NAMES[s.season_index]
-        self._date_txt.text  = f'Hari {s.day_in_season} | {season_n}'
+        self._date_txt.text = f'Hari {s.day_in_season} | {season_n} Thn {s.year}'
         from .scenes import SCENES
-        sc_display = SCENES.get(s.scene_name, type('o',(object,),{'display':s.scene_name})()).display
-        self._scene_txt.text = sc_display
-        self._weather_txt.text = s.weather
+        sc_display = SCENES.get(s.scene_name,
+                     type('o', (object,), {'display': s.scene_name})()).display
+        self._scene_txt.text = f'> {sc_display}'
 
     # ─── PUBLIC: FLASH MESSAGE ───────────────────────────
     def flash_msg(self, text: str, duration: float = 1.2):
         if self._flash_ent:
             self._flash_ent.text    = text
             self._flash_ent.enabled = True
+            if hasattr(self, '_flash_bg'):
+                self._flash_bg.enabled = True
             self._flash_t           = duration
 
     def show_message(self, text: str, duration: float = 2.0):
@@ -169,9 +214,9 @@ class UIManager:
     def _build_dialog_box(self):
         # Background kotak dialog
         self._dlg_bg = _ui(scale=(0.80, 0.22), position=(0, -0.36),
-                            color=color.rgba(15, 8, 30, 220))
+                            color=color.rgb(15, 8, 30, 220))
         self._dlg_border = _ui(scale=(0.82, 0.24), position=(0, -0.36),
-                                color=color.rgba(100, 70, 160, 180))
+                                color=color.rgb(100, 70, 160, 180))
         self._dlg_name = _txt('', pos=(-0.37, -0.27), scale=0.90,
                                col=color.rgb(220, 190, 255))
         self._dlg_text = _txt('', pos=(-0.37, -0.34), scale=0.85,
@@ -241,7 +286,7 @@ class UIManager:
     # ─── PUBLIC: PANEL ───────────────────────────────────
     def _build_panel_bg(self):
         self._panel_bg = _ui(scale=(1.5, 1.2), position=(0, 0),
-                              color=color.rgba(10, 5, 20, 210))
+                              color=color.rgb(10, 5, 20, 210))
         self._panel_title = _txt('', pos=(-0.45, 0.44), scale=1.2,
                                   col=color.rgb(220, 190, 255))
         self._panel_body  = _txt('', pos=(-0.45, 0.36), scale=0.80,
@@ -270,6 +315,7 @@ class UIManager:
             'relations': 'Hubungan NPC',
             'shop':      'Toko Bu Sari',
             'crafting':  'Bengkel Pak Budi',
+            'help':      'Panduan Kontrol',
         }
         self._panel_title.text = titles.get(name, name.capitalize())
         # Update hint sesuai panel
@@ -295,26 +341,40 @@ class UIManager:
             qs   = s.quest_stage
             lines= []
             for q in QUEST_STAGES:
-                mark = '✓' if q['s'] < qs else ('►' if q['s'] == qs else ' ')
+                mark = '[v]' if q['s'] < qs else ('[>]' if q['s'] == qs else '[ ]')
                 lines.append(f" {mark} [{q['s']}] {q['t']}: {q['d']}")
             self._panel_body.text = '\n'.join(lines)
 
         elif name == 'map':
-            scenes_list = [
-                'farm→Kebun Paman Arsa', 'town→Desa Karsa',
-                'mountain→Lereng Gunung', 'lake→Danau Karsa',
-                'cemetery→Kuburan Tua', 'naga_cave→Gua Sang Hyang',
-                'dungeon→Gua Bertingkat (roguelike)',
-                '', f'Posisi saat ini: {s.scene_name}',
-                f'Kedalaman dungeon: Level {s.dungeon_level}',
+            cur = s.scene_name
+            def _loc(key, label):
+                return f'[{label}]' if cur != key else f'>>>{label}<<<'
+            lines = [
+                '',
+                f"  {_loc('mountain','LERENG GUNUNG')}",
+                '          |',
+                f"  {_loc('farm','KEBUN')}---{_loc('town','DESA')}---{_loc('lake','DANAU')}",
+                '              |',
+                f"         {_loc('cemetery','KUBURAN')}",
+                '              |',
+                f"         {_loc('naga_cave','GUA HYANG')}",
+                '              |',
+                f"         {_loc('dungeon', 'DUNGEON Lv.' + str(s.dungeon_level))}",
+                '',
+                '  Indoor: [rumah] [warung] [klinik]',
+                '          [studio] [bengkel]',
+                '',
+                f"  Lokasi : {s.scene_name}",
+                f"  Hari   : {s.day_in_season} | {self._season_name(s)}  Thn {s.year}",
+                f"  Cuaca  : {s.weather}",
             ]
-            self._panel_body.text = '\n'.join(scenes_list)
+            self._panel_body.text = '\n'.join(lines)
 
         elif name == 'relations':
             lines = []
             for npc_id in list(_ALL_NPCS.keys()):
                 hearts = s.npc_hearts.get(npc_id, 0)
-                bar    = '♥' * int(hearts) + '♡' * (10 - int(hearts))
+                bar    = '*' * int(hearts) + '-' * (10 - int(hearts))
                 name_  = _ALL_NPCS[npc_id].get('name', npc_id)
                 lines.append(f"  {name_:15s} {bar[:10]}")
             self._panel_body.text = '\n'.join(lines[:25])
@@ -340,7 +400,7 @@ class UIManager:
                 got_gold = s.gold >= r['cost_gold']
                 got_mat  = all(inv.get(k, 0) >= v for k, v in r['needs'].items())
                 already  = s.pickaxe_tier >= r['tier']
-                mark = '✓' if already else ('●' if (got_gold and got_mat) else '○')
+                mark = '[v]' if already else ('[o]' if (got_gold and got_mat) else '[ ]')
                 lines.append(f"  [{i+1}] {mark} {r['name']:18s}  {r['cost_gold']:>4}G + {need}")
             lines.append('')
             lines.append("── PEDANG ──")
@@ -350,11 +410,36 @@ class UIManager:
                 got_gold = s.gold >= r['cost_gold']
                 got_mat  = all(inv.get(k, 0) >= v for k, v in r['needs'].items())
                 already  = s.sword_id == r['id']
-                mark = '✓' if already else ('●' if (got_gold and got_mat) else '○')
+                mark = '[v]' if already else ('[o]' if (got_gold and got_mat) else '[ ]')
                 lines.append(f"  [{num}] {mark} {r['name']:18s}  {r['cost_gold']:>4}G + {need} (DMG {r['damage']})")
             lines.append('')
-            lines.append("○=kurang bahan  ●=siap  ✓=sudah punya")
+            lines.append("[ ]=kurang bahan  [o]=siap  [v]=sudah punya")
             self._panel_body.text = '\n'.join(lines)
+
+        elif name == 'help':
+            self._panel_body.text = (
+                "── GERAK ──\n"
+                "  WASD / Arrow  : Jalan\n"
+                "  Shift+WASD    : Lari (pakai energi)\n\n"
+                "── AKSI ──\n"
+                "  SPACE  : Pakai alat aktif\n"
+                "  E      : Bicara/Interaksi NPC\n"
+                "  Z      : Serang (butuh pedang)\n"
+                "  F      : Tangkap makhluk liar\n"
+                "  G      : Beri hadiah ke NPC\n"
+                "  V      : Makan item (pulihkan HP/EN)\n"
+                "  T      : Tidur (hanya di Rumah)\n\n"
+                "── ALAT (angka 1-8) ──\n"
+                "  1-CNG  2-SRM  3-TNM  4-PNS\n"
+                "  5-KPK  6-HDH  7-PCK  8-PDG\n"
+                "  Q/R    : Ganti bibit\n\n"
+                "── MENU ──\n"
+                "  I: Inventori   M: Peta\n"
+                "  J: Quest       H: Relasi NPC\n"
+                "  K: Toko (di Warung)  U: Kerajinan (di Bengkel)\n"
+                "  F5: Simpan     F9: Muat\n"
+                "  ESC: Tutup panel"
+            )
 
     @staticmethod
     def _season_name(s):

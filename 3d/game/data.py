@@ -14,6 +14,29 @@ CROPS = {
     'jamur':    {'name':'Jamur','days':3,'sell':55,'cost':12,'seasons':['Dingin']},
 }
 
+# ─── CONSUMABLES (python-2d-game buff_effects.py pattern) ────────────────────
+# Registry: item_name → {heal_hp, heal_energy, buff, buff_ms, desc}
+# Tiga phase lifecycle buff: start (apply), middle (tick), end (revert)
+CONSUMABLES = {
+    'lobak':     {'heal_hp': 8,  'heal_energy': 5,  'desc': '+8 HP, +5 EN'},
+    'wortel':    {'heal_hp': 14, 'heal_energy': 8,  'desc': '+14 HP, +8 EN'},
+    'stroberi':  {'heal_hp': 20, 'heal_energy': 12, 'desc': '+20 HP, +12 EN'},
+    'jagung':    {'heal_hp': 10, 'heal_energy': 20, 'desc': '+10 HP, +20 EN'},
+    'tomat':     {'heal_hp': 16, 'heal_energy': 10, 'desc': '+16 HP, +10 EN'},
+    'labu':      {'heal_hp': 28, 'heal_energy': 18, 'desc': '+28 HP, +18 EN'},
+    'bayam':     {'heal_hp': 10, 'heal_energy': 28, 'desc': '+10 HP, +28 EN'},
+    'jamur':     {'heal_hp': 25, 'heal_energy': 15, 'desc': '+25 HP, +15 EN'},
+    # Wild items: efek buff tambahan (start-effect + middle-effect)
+    'wild_herb': {'heal_hp': 18, 'heal_energy': 10,
+                  'buff': 'regen', 'buff_ms': 12000,
+                  'desc': '+18 HP +10 EN, Regen 12 detik'},
+    'wild_berry':{'heal_hp': 12, 'heal_energy': 8,
+                  'desc': '+12 HP, +8 EN'},
+    'mandrake':  {'heal_hp': 60, 'heal_energy': 40,
+                  'buff': 'strength', 'buff_ms': 20000,
+                  'desc': '+60 HP, +40 EN, Kuat 20 detik!'},
+}
+
 WILD_ITEMS = {
     'mandrake':         {'name':'Mandrake','sell':80,'description':'Akar ajaib','dangerous':True},
     'running_mushroom': {'name':'Jamur Lari','sell':45,'description':'Berlari saat didekati'},
